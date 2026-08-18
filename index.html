@@ -537,20 +537,80 @@
     }
 
     .start-screen .btn { width: 100%; max-width: 280px; margin-bottom: 10px; }
+
+    .license-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.15);
+      color: var(--text-dim);
+      cursor: pointer;
+      background: rgba(0,0,0,0.25);
+    }
+
+    .license-badge.trial { color: var(--gold); border-color: rgba(212,175,55,0.45); }
+    .license-badge.unlocked { color: var(--positive); border-color: rgba(74,222,128,0.4); }
+    .license-badge.lite { color: var(--neutral); }
+
+    .header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: flex-start;
+    }
+
+    .lock-overlay .sheet { align-self: center; border-radius: 20px; max-height: 90vh; margin: 16px; width: calc(100% - 32px); }
+
+    .key-input {
+      width: 100%;
+      min-height: 52px;
+      border-radius: 12px;
+      border: 1px solid rgba(212,175,55,0.45);
+      background: rgba(0,0,0,0.35);
+      color: var(--text);
+      font-size: 1.05rem;
+      letter-spacing: 0.08em;
+      text-align: center;
+      font-weight: 700;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      text-transform: uppercase;
+      margin: 12px 0 8px;
+    }
+
+    .lock-status {
+      font-size: 0.82rem;
+      min-height: 1.3em;
+      margin-bottom: 12px;
+    }
+
+    .mode-btn.locked {
+      opacity: 0.55;
+      position: relative;
+    }
   </style>
 </head>
 <body>
 
 <div class="start-screen" id="startScreen">
   <h1>♠ Count Blackjack</h1>
-  <p>Learn the Hi-Lo card counting system while playing real blackjack. Start in Learn mode to see counts on every card, then switch to Practice to test yourself.</p>
-  <button class="btn btn-primary" id="startLearn">Start — Learn Mode</button>
-  <button class="btn btn-secondary" id="startPractice">Start — Practice Mode</button>
+  <p>Learn the Hi-Lo card counting system while playing real blackjack. Lite (Learn mode) is free. Practice mode is included in a 5-day trial, then unlocks with a $0.99 key from JDs Pharmacopeia.</p>
+  <button class="btn btn-primary" id="startLearn">Start — Lite / Learn</button>
+  <button class="btn btn-secondary" id="startPractice">Start — Practice (trial / paid)</button>
+  <button class="btn btn-secondary" id="startUnlock">Enter unlock key</button>
 </div>
 
 <div class="app">
   <header class="header">
-    <h1>♠ Count Blackjack</h1>
+    <div class="header-left">
+      <h1>♠ Count Blackjack</h1>
+      <button class="license-badge lite" id="licenseBadge" type="button">Lite</button>
+    </div>
     <div class="header-actions">
       <button class="icon-btn" id="helpBtn" aria-label="How to count">?</button>
       <button class="icon-btn" id="newShoeBtn" aria-label="New shoe">↻</button>
@@ -663,6 +723,26 @@
     </ul>
 
     <div class="tip-box">This is a learning tool. Real casinos use multiple decks, shuffle mid-shoe, and don't allow phones at the table. Counting is legal but casinos can refuse service.</div>
+
+    <h3>Lite vs Paid</h3>
+    <ul>
+      <li><strong>Lite (free)</strong> — play blackjack with Learn mode (counts shown on cards).</li>
+      <li><strong>5-day trial</strong> — Practice mode (hidden counts + quizzes) included.</li>
+      <li><strong>Paid ($0.99)</strong> — Practice mode stays unlocked. Buy a key at <a href="https://jdspharmacopeia.com" target="_blank" rel="noopener" style="color:var(--gold)">jdspharmacopeia.com</a>.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="overlay lock-overlay" id="lockOverlay">
+  <div class="sheet">
+    <button class="sheet-close" id="lockClose">✕</button>
+    <h2 id="lockTitle">Unlock Practice Mode</h2>
+    <p id="lockCopy">Lite Learn mode stays free. Practice mode (hidden counts and quizzes) is included for 5 days, then needs a $0.99 unlock key from JDs Pharmacopeia.</p>
+    <div class="tip-box">Pay $0.99 on <a href="https://jdspharmacopeia.com" target="_blank" rel="noopener" style="color:var(--gold)">jdspharmacopeia.com</a> (or Venmo/Cash App @JDsPharmacopeia). You’ll get a key like <strong>CB-XXXX-XXXX-XXXX</strong>.</div>
+    <a class="btn btn-primary btn-full" id="buyLink" href="https://jdspharmacopeia.com" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;text-decoration:none;margin:12px 0;">Buy unlock key — $0.99</a>
+    <input class="key-input" id="licenseInput" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="CB-XXXX-XXXX-XXXX" maxlength="17">
+    <div class="lock-status" id="lockStatus"></div>
+    <button class="btn btn-secondary btn-full" id="unlockBtn">Unlock with key</button>
   </div>
 </div>
 
@@ -673,6 +753,14 @@
   const NUM_DECKS = 6;
   const SHOE_SIZE = NUM_DECKS * 52;
   const PENETRATION = 0.75;
+  const TRIAL_DAYS = 5;
+  const BUY_URL = 'https://jdspharmacopeia.com';
+  const STORE = {
+    trial: 'cb_trial_start',
+    key: 'cb_license_key'
+  };
+  const KEY_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const KEY_SECRET = 'JDsPharmacopeia-Counter-HiLo-2026';
 
   let shoe = [];
   let dealtCount = 0;
@@ -688,6 +776,147 @@
   let dealerHoleHidden = true;
 
   const $ = id => document.getElementById(id);
+
+  function hashPair(str) {
+    let h = 5381;
+    let h2 = 2166136261;
+    for (let i = 0; i < str.length; i++) {
+      const c = str.charCodeAt(i);
+      h = (((h << 5) + h) ^ c) >>> 0;
+      h2 ^= c;
+      h2 = Math.imul(h2, 16777619) >>> 0;
+    }
+    return [h, h2];
+  }
+
+  function checksum4(payload) {
+    const [h, h2] = hashPair(payload + KEY_SECRET);
+    let n = (h ^ h2) >>> 0;
+    let out = '';
+    for (let i = 0; i < 4; i++) {
+      out += KEY_ALPHABET[n % 32];
+      n = Math.imul(n, 2654435761) >>> 5;
+    }
+    return out;
+  }
+
+  function normalizeKey(value) {
+    return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  }
+
+  function formatKey(raw) {
+    const n = normalizeKey(raw);
+    const body = n.startsWith('CB') ? n.slice(2) : n;
+    if (body.length < 12) return n;
+    return `CB-${body.slice(0, 4)}-${body.slice(4, 8)}-${body.slice(8, 12)}`;
+  }
+
+  function isValidKey(value) {
+    const n = normalizeKey(value);
+    if (!n.startsWith('CB') || n.length !== 14) return false;
+    const body = n.slice(2);
+    return body.slice(8, 12) === checksum4(body.slice(0, 8));
+  }
+
+  function startTrialIfNeeded() {
+    if (!localStorage.getItem(STORE.trial)) {
+      localStorage.setItem(STORE.trial, String(Date.now()));
+    }
+  }
+
+  function trialDaysLeft() {
+    const start = Number(localStorage.getItem(STORE.trial) || 0);
+    if (!start) return TRIAL_DAYS;
+    const elapsed = Date.now() - start;
+    const left = TRIAL_DAYS - elapsed / 86400000;
+    return Math.max(0, left);
+  }
+
+  function isUnlocked() {
+    return isValidKey(localStorage.getItem(STORE.key));
+  }
+
+  function trialActive() {
+    return trialDaysLeft() > 0;
+  }
+
+  function canUsePractice() {
+    return isUnlocked() || trialActive();
+  }
+
+  function licenseLabel() {
+    if (isUnlocked()) return { text: 'Unlocked', cls: 'unlocked' };
+    const days = trialDaysLeft();
+    if (days > 0) {
+      const shown = days >= 1 ? `${Math.ceil(days)}d left` : 'Last day';
+      return { text: `Trial · ${shown}`, cls: 'trial' };
+    }
+    return { text: 'Lite', cls: 'lite' };
+  }
+
+  function refreshLicenseUI() {
+    const badge = $('licenseBadge');
+    const info = licenseLabel();
+    badge.textContent = info.text;
+    badge.className = `license-badge ${info.cls}`;
+    $('practiceModeBtn').classList.toggle('locked', !canUsePractice());
+    $('buyLink').href = BUY_URL;
+  }
+
+  function showLock(reason) {
+    const days = trialDaysLeft();
+    if (isUnlocked()) {
+      $('lockTitle').textContent = 'Already unlocked';
+      $('lockCopy').textContent = 'This device already has a valid key. Practice mode is available.';
+    } else if (days > 0) {
+      $('lockTitle').textContent = 'Trial in progress';
+      $('lockCopy').textContent = `Practice mode is free for ${Math.ceil(days)} more day${Math.ceil(days) === 1 ? '' : 's'}. After that, a $0.99 key keeps it unlocked. You can enter a key anytime.`;
+    } else {
+      $('lockTitle').textContent = reason || 'Trial ended';
+      $('lockCopy').textContent = 'Lite Learn mode stays free. Practice mode needs a $0.99 unlock key from JDs Pharmacopeia.';
+    }
+    $('lockStatus').textContent = '';
+    $('lockOverlay').classList.add('open');
+    $('licenseInput').focus();
+  }
+
+  function hideLock() {
+    $('lockOverlay').classList.remove('open');
+  }
+
+  function tryUnlock() {
+    const key = formatKey($('licenseInput').value);
+    $('licenseInput').value = key;
+    const status = $('lockStatus');
+    if (!isValidKey(key)) {
+      status.textContent = 'That key is not valid. Check the dashes and try again.';
+      status.style.color = 'var(--negative)';
+      return false;
+    }
+    localStorage.setItem(STORE.key, key);
+    status.textContent = 'Unlocked. Practice mode is yours.';
+    status.style.color = 'var(--positive)';
+    refreshLicenseUI();
+    setTimeout(hideLock, 900);
+    return true;
+  }
+
+  function requirePractice() {
+    if (canUsePractice()) return true;
+    setMode(true);
+    showLock('Unlock Practice Mode');
+    return false;
+  }
+
+  function beginPlay(practice) {
+    startTrialIfNeeded();
+    refreshLicenseUI();
+    if (practice && !requirePractice()) return;
+    $('startScreen').classList.add('hidden');
+    setMode(!practice);
+    createShoe();
+    showBetting();
+  }
 
   function hiLoValue(rank) {
     if (['2','3','4','5','6'].includes(rank)) return 1;
@@ -874,6 +1103,10 @@
   }
 
   function deal() {
+    if (!learnMode && !canUsePractice()) {
+      requirePractice();
+      return;
+    }
     if (bet > bankroll) return;
     bankroll -= bet;
     $('bankroll').textContent = `$${bankroll}`;
@@ -1057,6 +1290,7 @@
   }
 
   function setMode(learn) {
+    if (!learn && !requirePractice()) return;
     learnMode = learn;
     $('learnModeBtn').classList.toggle('active', learn);
     $('practiceModeBtn').classList.toggle('active', !learn);
@@ -1065,18 +1299,12 @@
   }
 
   // Event listeners
-  $('startLearn').addEventListener('click', () => {
-    $('startScreen').classList.add('hidden');
-    setMode(true);
-    createShoe();
-    showBetting();
-  });
-
-  $('startPractice').addEventListener('click', () => {
-    $('startScreen').classList.add('hidden');
-    setMode(false);
-    createShoe();
-    showBetting();
+  $('startLearn').addEventListener('click', () => beginPlay(false));
+  $('startPractice').addEventListener('click', () => beginPlay(true));
+  $('startUnlock').addEventListener('click', () => {
+    startTrialIfNeeded();
+    refreshLicenseUI();
+    showLock();
   });
 
   $('learnModeBtn').addEventListener('click', () => setMode(true));
@@ -1117,6 +1345,38 @@
   $('quizInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') checkQuiz();
   });
+
+  $('licenseBadge').addEventListener('click', () => {
+    startTrialIfNeeded();
+    refreshLicenseUI();
+    showLock();
+  });
+  $('lockClose').addEventListener('click', hideLock);
+  $('lockOverlay').addEventListener('click', e => {
+    if (e.target === $('lockOverlay')) hideLock();
+  });
+  $('unlockBtn').addEventListener('click', tryUnlock);
+  $('licenseInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') tryUnlock();
+  });
+  $('licenseInput').addEventListener('input', () => {
+    const el = $('licenseInput');
+    const pos = el.selectionStart;
+    const before = el.value;
+    el.value = formatKey(el.value);
+    if (before.length <= el.value.length) el.setSelectionRange(el.value.length, el.value.length);
+    else el.setSelectionRange(pos, pos);
+  });
+
+  (function bootLicense() {
+    startTrialIfNeeded();
+    const params = new URLSearchParams(location.search);
+    const fromUrl = params.get('key');
+    if (fromUrl && isValidKey(fromUrl)) {
+      localStorage.setItem(STORE.key, formatKey(fromUrl));
+    }
+    refreshLicenseUI();
+  })();
 })();
 </script>
 </body>
