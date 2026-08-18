@@ -1,6 +1,8 @@
-# Count Blackjack
+# BJCounter
 
 A mobile-first HTML blackjack game that teaches the **Hi-Lo card counting** system. Open `index.html` in Safari on your iPhone — no build step required.
+
+Lite (Learn mode) is free. Practice mode is a **3-day trial**, then $0.99 from [JDs Pharmacopeia](https://www.jdspharmacopeia.com/product/count-blackjack).
 
 ## Features
 
@@ -10,6 +12,7 @@ A mobile-first HTML blackjack game that teaches the **Hi-Lo card counting** syst
 - **Practice mode** — hide counts and quiz yourself after each hand
 - Live running count, true count, and decks-remaining display
 - Built-in tutorial explaining Hi-Lo and basic strategy
+- Paid download of `BJCounter.html` after checkout (not a public unpaid file)
 
 ## Play on iPhone
 
@@ -22,6 +25,8 @@ Or serve locally and visit from your phone on the same Wi‑Fi:
 python3 -m http.server 8080
 # then open http://<your-ip>:8080 on your iPhone
 ```
+
+Buy and download: https://www.jdspharmacopeia.com/product/count-blackjack
 
 ## Hi-Lo Quick Reference
 

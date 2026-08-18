@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create the Count Blackjack Unlock digital product on JD's Pharmacopeia.
+"""Create the BJCounter digital product on JD's Pharmacopeia.
 
 Webflow's CMS item endpoints reject ecommerce collections (403). This uses
 the Ecommerce Products API instead:
@@ -71,23 +71,28 @@ def list_existing(token: str) -> dict | None:
 def product_payload() -> dict:
     description = (
         "Learn the Hi-Lo card counting system while playing real blackjack. "
-        "Lite (Learn mode) is free. Practice mode is included in a 5-day trial, "
-        "then unlocks with this $0.99 key from JDs Pharmacopeia.\n\n"
-        "After checkout you will receive an unlock key like CB-XXXX-XXXX-XXXX. "
-        "Open Count Blackjack, tap Enter unlock key, and paste it. Lite Learn "
-        "mode stays free either way."
+        "Lite (Learn mode) is free. Practice mode is included in a 3-day trial, "
+        "then unlocks with this $0.99 BJCounter key from JDs Pharmacopeia.\n\n"
+        "After checkout you will receive a download of BJCounter.html and an unlock "
+        "key like CB-XXXX-XXXX-XXXX. Open BJCounter, tap Enter unlock key, and paste "
+        "it. Lite Learn mode stays free either way."
     )
     how_to_use = (
-        "1. Complete checkout for this $0.99 digital unlock (no shipping).\n"
-        "2. Copy your key from the order confirmation (format CB-XXXX-XXXX-XXXX).\n"
-        "3. Open Count Blackjack on your phone.\n"
-        "4. Tap Enter unlock key, paste the key, and tap Unlock with key.\n"
-        "5. Practice mode stays unlocked on this device. Lite Learn mode stays free either way."
+        "1. Tap Buy now / Add to Cart for this $0.99 digital unlock (no shipping).\n"
+        "2. After payment, click BJCounter.html on your order confirmation to download immediately.\n"
+        "3. Open BJCounter on your phone.\n"
+        "4. Tap Enter unlock key, paste the key from your receipt, and tap Unlock with key.\n"
+        "5. Practice mode is a 3-day trial, then stays unlocked on this device. "
+        "You can save a couple of copies from an unlocked device. Lite Learn mode stays free either way."
     )
     additional = (
+        "Lite Learn mode is free. Practice mode is a 3-day trial, then stays unlocked "
+        "with this $0.99 BJCounter key.\n\n"
         "This is a learning tool for the Hi-Lo card counting system. Counting cards "
         "is legal; casinos can still refuse service. Nothing is shipped. Instant "
         "digital delivery — no physical product.\n\n"
+        "The BJCounter.html file is delivered on your paid order confirmation as a "
+        "clickable download. It is not a public unpaid link.\n\n"
         "If you paid Venmo or Cash App @JDsPharmacopeia instead of checkout, "
         "message JD with your payment and we will send a key."
     )
@@ -95,7 +100,7 @@ def product_payload() -> dict:
         "publishStatus": "live",
         "product": {
             "fieldData": {
-                "name": "Count Blackjack Unlock",
+                "name": "BJCounter",
                 "slug": PRODUCT_SLUG,
                 "description": description,
                 "shippable": False,
@@ -105,14 +110,14 @@ def product_payload() -> dict:
                 "how-to-use": how_to_use,
                 "additional-information": additional,
                 "featured-product-description": (
-                    "A $0.99 unlock key for Count Blackjack Practice mode — "
-                    "hidden counts and running-count quizzes."
+                    "A $0.99 BJCounter unlock — Practice mode, hidden counts, "
+                    "running-count quizzes, and a purchase-gated HTML download."
                 ),
             }
         },
         "sku": {
             "fieldData": {
-                "name": "Count Blackjack Unlock",
+                "name": "BJCounter",
                 "slug": PRODUCT_SLUG,
                 "sku": "CB-UNLOCK-099",
                 "price": {"value": 99, "unit": "USD", "currency": "USD"},
