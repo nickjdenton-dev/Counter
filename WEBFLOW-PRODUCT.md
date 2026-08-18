@@ -13,7 +13,10 @@ Webflow Ecommerce listing for [jdspharmacopeia.com](https://www.jdspharmacopeia.
 | Billing | One-time |
 | Inventory | Infinite |
 | SKU | `CB-UNLOCK-099` |
+| Product ID | `6a83e30ee8cffb684e899385` |
+| SKU ID | `6a83e30fe8cffb684e899482` |
 | Live URL | https://www.jdspharmacopeia.com/product/count-blackjack |
+| Status | Live — $0.99, digital, no shipping, infinite inventory |
 
 ## Description
 

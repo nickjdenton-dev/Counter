@@ -14,13 +14,13 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 import urllib.error
 import urllib.request
 
 SITE_ID = "60f794aa5c6aabbdaef6fa21"
+PRODUCT_COLLECTION_ID = "60f794aa5c6aab140ff6fa42"
 SKU_COLLECTION_ID = "60f794aa5c6aab5b27f6fa43"
-APOTHECARY_CATEGORY_ID = "60f794aa5c6aabb9b4f6fa41"
+APOTHECARY_CATEGORY_ID = "60f794aa5c6aab331cf6fabc"  # Categories item slug=apothecary
 DIGITAL_PRODUCT_TYPE = "f22027db68002190aef89a4a2b7ac8a1"
 PRODUCT_SLUG = "count-blackjack"
 API = "https://api.webflow.com/v2"
@@ -131,6 +131,56 @@ def set_infinite_inventory(token: str, sku_id: str) -> dict:
     )
 
 
+def set_digital_type(token: str, product_id: str) -> dict:
+    """Create Product defaults to Advanced; CMS live patch can set Digital."""
+    return request(
+        "PATCH",
+        f"/collections/{PRODUCT_COLLECTION_ID}/items/{product_id}/live",
+        token,
+        {
+            "isDraft": False,
+            "fieldData": {
+                "ec-product-type": DIGITAL_PRODUCT_TYPE,
+                "shippable": False,
+                "tax-category": "digital-goods",
+            },
+        },
+    )
+
+
+def sku_from(payload: dict | None) -> dict | None:
+    if not payload:
+        return None
+    skus = payload.get("skus") or []
+    if skus:
+        return skus[0]
+    product = payload.get("product") or payload
+    sku_id = (product.get("fieldData") or {}).get("default-sku")
+    if sku_id:
+        return {"id": sku_id}
+    return None
+
+
+def finish_product(token: str, payload: dict) -> None:
+    product = payload.get("product") or payload
+    product_id = product.get("id")
+    sku = sku_from(payload)
+    sku_id = (sku or {}).get("id")
+    if product_id:
+        print("Setting digital / no-shipping…")
+        patched = set_digital_type(token, product_id)
+        print(json.dumps({
+            "id": patched.get("id"),
+            "ec-product-type": (patched.get("fieldData") or {}).get("ec-product-type"),
+            "shippable": (patched.get("fieldData") or {}).get("shippable"),
+            "tax-category": (patched.get("fieldData") or {}).get("tax-category"),
+        }, indent=2))
+    if sku_id:
+        print("Setting infinite inventory…")
+        print(json.dumps(set_infinite_inventory(token, sku_id), indent=2))
+    print("https://www.jdspharmacopeia.com/product/count-blackjack")
+
+
 def main() -> None:
     token = os.environ.get("WEBFLOW_TOKEN") or os.environ.get("WEBFLOW_SITE_API_TOKEN")
     if not token:
@@ -141,25 +191,27 @@ def main() -> None:
 
     existing = list_existing(token)
     if existing:
-        product = existing.get("product", existing)
-        sku = (existing.get("skus") or [None])[0]
         print("Product already exists:")
-        print(json.dumps({"product": product, "sku": sku}, indent=2))
-        sku_id = (sku or {}).get("id")
-        if sku_id:
-            print("Setting infinite inventory…")
-            print(json.dumps(set_infinite_inventory(token, sku_id), indent=2))
-        print("https://www.jdspharmacopeia.com/product/count-blackjack")
+        product = existing.get("product", existing)
+        sku = sku_from(existing)
+        print(json.dumps({
+            "product_id": product.get("id"),
+            "slug": (product.get("fieldData") or {}).get("slug"),
+            "sku_id": (sku or {}).get("id"),
+        }, indent=2))
+        finish_product(token, existing)
         return
 
     created = request("POST", f"/sites/{SITE_ID}/products", token, product_payload())
-    print(json.dumps(created, indent=2))
-    sku = (created.get("skus") or [None])[0]
-    sku_id = (sku or {}).get("id")
-    if sku_id:
-        print("Setting infinite inventory…")
-        print(json.dumps(set_infinite_inventory(token, sku_id), indent=2))
-    print("Live URL: https://www.jdspharmacopeia.com/product/count-blackjack")
+    product = created.get("product") or {}
+    print(json.dumps({
+        "product_id": product.get("id"),
+        "slug": (product.get("fieldData") or {}).get("slug"),
+        "sku_id": (sku_from(created) or {}).get("id"),
+    }, indent=2))
+    if not sku_from(created) and product.get("id"):
+        created = request("GET", f"/sites/{SITE_ID}/products/{product['id']}", token)
+    finish_product(token, created)
 
 
 if __name__ == "__main__":
