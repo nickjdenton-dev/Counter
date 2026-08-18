@@ -6,7 +6,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0d2818">
-  <title>Count Blackjack</title>
+  <title>BJCounter</title>
+  <meta name="apple-mobile-web-app-title" content="BJCounter">
   <style>
     :root {
       --felt: #0d2818;
@@ -593,22 +594,30 @@
       opacity: 0.55;
       position: relative;
     }
+
+    .start-screen .download-note {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      margin-top: 8px;
+    }
   </style>
 </head>
 <body>
 
 <div class="start-screen" id="startScreen">
-  <h1>♠ Count Blackjack</h1>
-  <p>Learn the Hi-Lo card counting system while playing real blackjack. Lite (Learn mode) is free. Practice mode is included in a 5-day trial, then unlocks with a $0.99 key from JDs Pharmacopeia.</p>
+  <h1>♠ BJCounter</h1>
+  <p>Learn the Hi-Lo card counting system while playing real blackjack. Lite (Learn mode) is free. Practice mode is included in a 3-day trial, then unlocks with a $0.99 key from JDs Pharmacopeia.</p>
   <button class="btn btn-primary" id="startLearn">Start — Lite / Learn</button>
   <button class="btn btn-secondary" id="startPractice">Start — Practice (trial / paid)</button>
   <button class="btn btn-secondary" id="startUnlock">Enter unlock key</button>
+  <a class="btn btn-primary btn-full" id="startDownload" href="https://www.jdspharmacopeia.com/product/count-blackjack" style="display:flex;align-items:center;justify-content:center;text-decoration:none;margin-top:10px;">Download BJCounter — $0.99</a>
+  <p class="download-note">Download is a paid checkout file. Unpaid clicks go to buy — this page will not hand out a free copy.</p>
 </div>
 
 <div class="app">
   <header class="header">
     <div class="header-left">
-      <h1>♠ Count Blackjack</h1>
+      <h1>♠ BJCounter</h1>
       <button class="license-badge lite" id="licenseBadge" type="button">Lite</button>
     </div>
     <div class="header-actions">
@@ -727,8 +736,8 @@
     <h3>Lite vs Paid</h3>
     <ul>
       <li><strong>Lite (free)</strong> — play blackjack with Learn mode (counts shown on cards).</li>
-      <li><strong>5-day trial</strong> — Practice mode (hidden counts + quizzes) included.</li>
-      <li><strong>Paid ($0.99)</strong> — Practice mode stays unlocked. Buy a key at <a href="https://jdspharmacopeia.com" target="_blank" rel="noopener" style="color:var(--gold)">jdspharmacopeia.com</a>.</li>
+      <li><strong>3-day trial</strong> — Practice mode (hidden counts + quizzes) included.</li>
+      <li><strong>Paid ($0.99)</strong> — Practice mode stays unlocked, and you can download BJCounter.html from your order. Buy at <a href="https://www.jdspharmacopeia.com/product/count-blackjack" target="_blank" rel="noopener" style="color:var(--gold)">jdspharmacopeia.com</a>.</li>
     </ul>
   </div>
 </div>
@@ -737,9 +746,10 @@
   <div class="sheet">
     <button class="sheet-close" id="lockClose">✕</button>
     <h2 id="lockTitle">Unlock Practice Mode</h2>
-    <p id="lockCopy">Lite Learn mode stays free. Practice mode (hidden counts and quizzes) is included for 5 days, then needs a $0.99 unlock key from JDs Pharmacopeia.</p>
-    <div class="tip-box">Pay $0.99 on <a href="https://jdspharmacopeia.com" target="_blank" rel="noopener" style="color:var(--gold)">jdspharmacopeia.com</a> (or Venmo/Cash App @JDsPharmacopeia). You’ll get a key like <strong>CB-XXXX-XXXX-XXXX</strong>.</div>
-    <a class="btn btn-primary btn-full" id="buyLink" href="https://jdspharmacopeia.com" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;text-decoration:none;margin:12px 0;">Buy unlock key — $0.99</a>
+    <p id="lockCopy">Lite Learn mode stays free. Practice mode (hidden counts and quizzes) is included for 3 days, then needs a $0.99 unlock key from JDs Pharmacopeia.</p>
+    <div class="tip-box">Pay $0.99 on <a href="https://www.jdspharmacopeia.com/product/count-blackjack" target="_blank" rel="noopener" style="color:var(--gold)">jdspharmacopeia.com</a> (or Venmo/Cash App @JDsPharmacopeia). You’ll get a download of BJCounter.html plus a key like <strong>CB-XXXX-XXXX-XXXX</strong>.</div>
+    <a class="btn btn-primary btn-full" id="buyLink" href="https://www.jdspharmacopeia.com/product/count-blackjack" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;text-decoration:none;margin:12px 0;">Buy &amp; download — $0.99</a>
+    <button class="btn btn-secondary btn-full" id="paidDownloadBtn" type="button">Download BJCounter.html</button>
     <input class="key-input" id="licenseInput" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="CB-XXXX-XXXX-XXXX" maxlength="17">
     <div class="lock-status" id="lockStatus"></div>
     <button class="btn btn-secondary btn-full" id="unlockBtn">Unlock with key</button>
@@ -753,11 +763,13 @@
   const NUM_DECKS = 6;
   const SHOE_SIZE = NUM_DECKS * 52;
   const PENETRATION = 0.75;
-  const TRIAL_DAYS = 5;
-  const BUY_URL = 'https://jdspharmacopeia.com';
+  const TRIAL_DAYS = 3;
+  const BUY_URL = 'https://www.jdspharmacopeia.com/product/count-blackjack';
+  const DOWNLOAD_LIMIT = 2;
   const STORE = {
-    trial: 'cb_trial_start',
-    key: 'cb_license_key'
+    trial: 'bjcounter_trial_start',
+    key: 'bjcounter_license_key',
+    downloads: 'bjcounter_download_count'
   };
   const KEY_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
   const KEY_SECRET = 'JDsPharmacopeia-Counter-HiLo-2026';
@@ -820,7 +832,8 @@
 
   function startTrialIfNeeded() {
     if (!localStorage.getItem(STORE.trial)) {
-      localStorage.setItem(STORE.trial, String(Date.now()));
+      const previous = localStorage.getItem('cb_trial_start');
+      localStorage.setItem(STORE.trial, previous || String(Date.now()));
     }
   }
 
@@ -832,8 +845,12 @@
     return Math.max(0, left);
   }
 
+  function storedKey() {
+    return localStorage.getItem(STORE.key) || localStorage.getItem('cb_license_key');
+  }
+
   function isUnlocked() {
-    return isValidKey(localStorage.getItem(STORE.key));
+    return isValidKey(storedKey());
   }
 
   function trialActive() {
@@ -867,10 +884,10 @@
     const days = trialDaysLeft();
     if (isUnlocked()) {
       $('lockTitle').textContent = 'Already unlocked';
-      $('lockCopy').textContent = 'This device already has a valid key. Practice mode is available.';
+      $('lockCopy').textContent = 'This device already has a valid key. Practice mode is available. You can save BJCounter.html a couple of times from this device.';
     } else if (days > 0) {
       $('lockTitle').textContent = 'Trial in progress';
-      $('lockCopy').textContent = `Practice mode is free for ${Math.ceil(days)} more day${Math.ceil(days) === 1 ? '' : 's'}. After that, a $0.99 key keeps it unlocked. You can enter a key anytime.`;
+      $('lockCopy').textContent = `Practice mode is free for ${Math.ceil(days)} more day${Math.ceil(days) === 1 ? '' : 's'}. After that, a $0.99 key keeps it unlocked. Download is only after you buy.`;
     } else {
       $('lockTitle').textContent = reason || 'Trial ended';
       $('lockCopy').textContent = 'Lite Learn mode stays free. Practice mode needs a $0.99 unlock key from JDs Pharmacopeia.';
@@ -894,11 +911,52 @@
       return false;
     }
     localStorage.setItem(STORE.key, key);
-    status.textContent = 'Unlocked. Practice mode is yours.';
+    status.textContent = 'Unlocked. Practice mode is yours. You can download BJCounter.html from this device.';
     status.style.color = 'var(--positive)';
     refreshLicenseUI();
     setTimeout(hideLock, 900);
     return true;
+  }
+
+  function downloadCount() {
+    return Number(localStorage.getItem(STORE.downloads) || 0);
+  }
+
+  function downloadApp(event) {
+    if (event) event.preventDefault();
+    const status = $('lockStatus');
+    if (!isUnlocked()) {
+      if (status) {
+        status.textContent = 'Buy first. Download is not a free public file.';
+        status.style.color = 'var(--gold)';
+      }
+      showLock('Buy to download BJCounter');
+      window.open(BUY_URL, '_blank', 'noopener');
+      return false;
+    }
+    if (downloadCount() >= DOWNLOAD_LIMIT) {
+      if (status) {
+        status.textContent = 'This device already saved its copies. Extra downloads are locked so the file cannot be passed around unpaid.';
+        status.style.color = 'var(--negative)';
+      }
+      showLock('Download limit reached');
+      return false;
+    }
+    const blob = new Blob(['<!DOCTYPE html>\n', document.documentElement.outerHTML], { type: 'text/html;charset=utf-8' });
+    const a = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    a.href = url;
+    a.download = 'BJCounter.html';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    localStorage.setItem(STORE.downloads, String(downloadCount() + 1));
+    if (status) {
+      status.textContent = `Saved BJCounter.html (${downloadCount()} of ${DOWNLOAD_LIMIT} on this device).`;
+      status.style.color = 'var(--positive)';
+    }
+    return false;
   }
 
   function requirePractice() {
@@ -1356,6 +1414,8 @@
     if (e.target === $('lockOverlay')) hideLock();
   });
   $('unlockBtn').addEventListener('click', tryUnlock);
+  $('paidDownloadBtn').addEventListener('click', downloadApp);
+  $('startDownload').addEventListener('click', downloadApp);
   $('licenseInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') tryUnlock();
   });
