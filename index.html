@@ -206,6 +206,38 @@
       font-size: 0.9rem;
     }
 
+    .player-hands {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .split-hand {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 6px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      min-width: 0;
+    }
+
+    .split-hand.active {
+      border-color: var(--gold);
+      background: rgba(212,175,55,0.1);
+    }
+
+    .player-hands.split .card {
+      width: 46px;
+      height: 66px;
+    }
+
+    .player-hands.split .card-rank { font-size: 1.05rem; }
+    .player-hands.split .card-suit { font-size: 0.9rem; }
+
     .cards {
       display: flex;
       justify-content: center;
@@ -677,8 +709,12 @@
     </div>
 
     <div class="hand-area" id="playerArea">
-      <div class="hand-label">You <span class="total" id="playerTotal"></span></div>
-      <div class="cards" id="playerCards"></div>
+      <div class="player-hands" id="playerHandsWrap">
+        <div class="split-hand">
+          <div class="hand-label">You <span class="total"></span></div>
+          <div class="cards"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -694,7 +730,8 @@
       <button class="btn btn-primary" id="hitBtn">Hit</button>
       <button class="btn btn-secondary" id="standBtn">Stand</button>
       <button class="btn btn-secondary" id="doubleBtn">Double</button>
-      <button class="btn btn-danger" id="surrenderBtn">Surrender</button>
+      <button class="btn btn-secondary" id="splitBtn">Split</button>
+      <button class="btn btn-danger btn-full" id="surrenderBtn">Surrender</button>
     </div>
   </div>
 </div>
@@ -726,6 +763,7 @@
     <h3>Basic Strategy Tips</h3>
     <ul>
       <li>Always stand on hard 17+</li>
+      <li>Always split Aces and 8s; never split 10s. One split only — Aces get one card each.</li>
       <li>Double on 11 vs dealer 2–10</li>
       <li>Never take insurance (it's a sucker bet even when counting)</li>
       <li>At true count +2 or higher, consider increasing your bet</li>
@@ -781,13 +819,58 @@
   let bet = 25;
   let learnMode = true;
   let gamePhase = 'betting'; // betting, playing, dealer, result
-  let playerHand = [];
+  let playerHands = [];
+  let activeHand = 0;
   let dealerHand = [];
-  let doubled = false;
-  let surrendered = false;
   let dealerHoleHidden = true;
 
   const $ = id => document.getElementById(id);
+
+  function currentHand() {
+    return playerHands[activeHand];
+  }
+
+  function isPair(hand) {
+    return !!(hand && hand.cards.length === 2 && hand.cards[0].rank === hand.cards[1].rank);
+  }
+
+  function canSplit() {
+    if (gamePhase !== 'playing' || playerHands.length !== 1) return false;
+    const hand = playerHands[0];
+    return isPair(hand) && !hand.done && bankroll >= hand.bet;
+  }
+
+  function refreshBankroll() {
+    $('bankroll').textContent = `$${bankroll}`;
+  }
+
+  function refreshBetDisplay() {
+    if (playerHands.length > 1) {
+      const total = playerHands.reduce((sum, hand) => sum + hand.bet, 0);
+      $('betDisplay').textContent = `Bet: $${total}`;
+    } else if (playerHands.length === 1 && playerHands[0].doubled) {
+      $('betDisplay').textContent = `Bet: $${playerHands[0].bet}`;
+    } else {
+      $('betDisplay').textContent = `Bet: $${bet}`;
+    }
+  }
+
+  function actionPrompt() {
+    if (canSplit()) return 'Hit, Stand, Double, Split, or Surrender';
+    if (playerHands.length > 1) return `Hand ${activeHand + 1} of ${playerHands.length} — Hit or Stand`;
+    return 'Hit, Stand, Double, or Surrender';
+  }
+
+  function updateActionButtons() {
+    const hand = currentHand();
+    const twoCards = !!(hand && !hand.done && hand.cards.length === 2);
+    const unsplit = playerHands.length === 1;
+    $('hitBtn').disabled = !hand || hand.done;
+    $('standBtn').disabled = !hand || hand.done;
+    $('doubleBtn').disabled = !twoCards || !unsplit || bankroll < (hand ? hand.bet : bet);
+    $('splitBtn').disabled = !canSplit();
+    $('surrenderBtn').disabled = !twoCards || !unsplit;
+  }
 
   function hashPair(str) {
     let h = 5381;
@@ -1110,18 +1193,32 @@
   }
 
   function renderHands() {
-    const pCards = $('playerCards');
+    const wrap = $('playerHandsWrap');
     const dCards = $('dealerCards');
-    pCards.innerHTML = '';
+    wrap.innerHTML = '';
     dCards.innerHTML = '';
+    wrap.classList.toggle('split', playerHands.length > 1);
 
-    playerHand.forEach(c => pCards.appendChild(renderCard(c, false, true)));
+    const hands = playerHands.length ? playerHands : [{ cards: [], done: false, busted: false }];
+    hands.forEach((hand, i) => {
+      const el = document.createElement('div');
+      const playing = gamePhase === 'playing' && playerHands.length > 1 && i === activeHand && !hand.done;
+      el.className = 'split-hand' + (playing ? ' active' : '');
+      const label = playerHands.length > 1 ? `Hand ${i + 1}` : 'You';
+      const total = hand.cards.length ? handTotal(hand.cards) : '';
+      el.innerHTML = `<div class="hand-label">${label} <span class="total">${total}</span></div>`;
+      const cards = document.createElement('div');
+      cards.className = 'cards';
+      hand.cards.forEach(c => cards.appendChild(renderCard(c, false, true)));
+      el.appendChild(cards);
+      wrap.appendChild(el);
+    });
+
     dealerHand.forEach((c, i) => {
-      const hide = dealerHoleHidden && i === 1 && gamePhase === 'playing';
+      const hide = dealerHoleHidden && i === 1 && (gamePhase === 'playing' || gamePhase === 'betting');
       dCards.appendChild(renderCard(c, hide, !hide));
     });
 
-    $('playerTotal').textContent = playerHand.length ? handTotal(playerHand) : '';
     if (dealerHoleHidden && gamePhase === 'playing') {
       $('dealerTotal').textContent = dealerHand.length ? cardValue(dealerHand[0]) : '';
     } else {
@@ -1142,11 +1239,11 @@
     $('betControls').classList.remove('hidden');
     $('actionControls').classList.add('hidden');
     $('quizPrompt').style.display = 'none';
-    playerHand = [];
+    playerHands = [];
+    activeHand = 0;
     dealerHand = [];
-    doubled = false;
-    surrendered = false;
     dealerHoleHidden = true;
+    refreshBetDisplay();
     renderHands();
     setMessage('Place your bet and deal');
     $('dealBtn').disabled = bet > bankroll;
@@ -1156,8 +1253,7 @@
     gamePhase = 'playing';
     $('betControls').classList.add('hidden');
     $('actionControls').classList.remove('hidden');
-    $('doubleBtn').disabled = bankroll < bet || playerHand.length !== 2;
-    $('surrenderBtn').disabled = playerHand.length !== 2;
+    updateActionButtons();
   }
 
   function deal() {
@@ -1167,15 +1263,25 @@
     }
     if (bet > bankroll) return;
     bankroll -= bet;
-    $('bankroll').textContent = `$${bankroll}`;
+    refreshBankroll();
 
-    playerHand = [dealCard(), dealCard()];
+    playerHands = [{
+      cards: [dealCard(), dealCard()],
+      bet,
+      done: false,
+      busted: false,
+      doubled: false,
+      surrendered: false
+    }];
+    activeHand = 0;
     dealerHand = [dealCard(), dealCard()];
     dealerHoleHidden = true;
     renderHands();
     showPlaying();
 
-    if (handTotal(playerHand) === 21) {
+    const first = playerHands[0];
+    if (handTotal(first.cards) === 21) {
+      first.done = true;
       gamePhase = 'dealer';
       dealerHoleHidden = false;
       renderHands();
@@ -1184,60 +1290,156 @@
       } else {
         setMessage('Blackjack!', 'win');
       }
-      setTimeout(resolveHand, 600);
+      setTimeout(resolveRound, 600);
       return;
     }
 
-    setMessage('Hit, Stand, Double, or Surrender');
+    setMessage(actionPrompt());
   }
 
-  function hit() {
-    playerHand.push(dealCard());
-    renderHands();
-
-    if (handTotal(playerHand) > 21) {
-      setMessage('Bust!', 'lose');
-      $('actionControls').classList.add('hidden');
-      setTimeout(resolveHand, 800);
-    } else if (handTotal(playerHand) === 21) {
-      setMessage('21!', '');
-      stand();
-    } else {
-      $('doubleBtn').disabled = true;
-      $('surrenderBtn').disabled = true;
-    }
-  }
-
-  function stand() {
+  function finishPlayerTurn() {
     $('actionControls').classList.add('hidden');
     gamePhase = 'dealer';
     dealerHoleHidden = false;
     renderHands();
+    const stillLive = playerHands.some(hand => !hand.busted && !hand.surrendered);
+    if (!stillLive) {
+      resolveRound();
+      return;
+    }
     setMessage('Dealer plays...');
-
     setTimeout(dealerPlay, 500);
   }
 
-  function doubleDown() {
-    if (bankroll < bet) return;
-    bankroll -= bet;
-    bet *= 2;
-    doubled = true;
-    $('bankroll').textContent = `$${bankroll}`;
-    $('betDisplay').textContent = `Bet: $${bet}`;
-    hit();
-    if (handTotal(playerHand) <= 21) {
-      stand();
+  function advanceHand() {
+    const next = playerHands.findIndex((hand, i) => i > activeHand && !hand.done);
+    if (next < 0) {
+      finishPlayerTurn();
+      return;
+    }
+    activeHand = next;
+    renderHands();
+    updateActionButtons();
+    $('actionControls').classList.remove('hidden');
+    if (handTotal(currentHand().cards) === 21) {
+      currentHand().done = true;
+      setMessage(`Hand ${activeHand + 1} — 21`);
+      setTimeout(advanceHand, 400);
+      return;
+    }
+    setMessage(actionPrompt());
+  }
+
+  function hit() {
+    const hand = currentHand();
+    if (!hand || hand.done) return;
+    hand.cards.push(dealCard());
+    renderHands();
+    const total = handTotal(hand.cards);
+    if (total > 21) {
+      hand.busted = true;
+      hand.done = true;
+      setMessage(playerHands.length > 1 ? `Hand ${activeHand + 1} busts` : 'Bust!', 'lose');
+      $('actionControls').classList.add('hidden');
+      setTimeout(playerHands.length > 1 ? advanceHand : finishPlayerTurn, 700);
+    } else if (total === 21) {
+      hand.done = true;
+      setMessage(playerHands.length > 1 ? `Hand ${activeHand + 1} — 21` : '21!');
+      setTimeout(playerHands.length > 1 ? advanceHand : finishPlayerTurn, 400);
+    } else {
+      updateActionButtons();
     }
   }
 
+  function stand() {
+    const hand = currentHand();
+    if (!hand || hand.done) return;
+    hand.done = true;
+    if (playerHands.length > 1) {
+      advanceHand();
+    } else {
+      finishPlayerTurn();
+    }
+  }
+
+  function doubleDown() {
+    const hand = currentHand();
+    if (!hand || hand.cards.length !== 2 || playerHands.length > 1 || bankroll < hand.bet) return;
+    bankroll -= hand.bet;
+    hand.bet *= 2;
+    hand.doubled = true;
+    refreshBankroll();
+    refreshBetDisplay();
+    hand.cards.push(dealCard());
+    hand.done = true;
+    renderHands();
+    const total = handTotal(hand.cards);
+    if (total > 21) {
+      hand.busted = true;
+      setMessage('Bust!', 'lose');
+      setTimeout(finishPlayerTurn, 700);
+    } else {
+      finishPlayerTurn();
+    }
+  }
+
+  function splitHand() {
+    if (!canSplit()) return;
+    const first = playerHands[0];
+    const wager = first.bet;
+    bankroll -= wager;
+    refreshBankroll();
+
+    const left = {
+      cards: [first.cards[0], dealCard()],
+      bet: wager,
+      done: false,
+      busted: false,
+      doubled: false,
+      surrendered: false
+    };
+    const right = {
+      cards: [first.cards[1], dealCard()],
+      bet: wager,
+      done: false,
+      busted: false,
+      doubled: false,
+      surrendered: false
+    };
+    playerHands = [left, right];
+    activeHand = 0;
+    refreshBetDisplay();
+    renderHands();
+
+    if (first.cards[0].rank === 'A') {
+      left.done = true;
+      right.done = true;
+      setMessage('Split Aces — one card each');
+      $('actionControls').classList.add('hidden');
+      setTimeout(finishPlayerTurn, 700);
+      return;
+    }
+
+    updateActionButtons();
+    if (handTotal(left.cards) === 21) {
+      left.done = true;
+      setMessage('Hand 1 — 21');
+      setTimeout(advanceHand, 400);
+      return;
+    }
+    setMessage(actionPrompt());
+  }
+
   function surrender() {
-    surrendered = true;
-    bankroll += Math.floor(bet / 2);
-    $('bankroll').textContent = `$${bankroll}`;
+    const hand = currentHand();
+    if (!hand || hand.cards.length !== 2 || playerHands.length > 1) return;
+    hand.surrendered = true;
+    hand.done = true;
+    bankroll += Math.floor(hand.bet / 2);
+    refreshBankroll();
     setMessage('Surrendered — half bet returned', 'push');
     $('actionControls').classList.add('hidden');
-    setTimeout(resolveHand, 600);
+    setTimeout(finishPlayerTurn, 600);
   }
 
   function dealerPlay() {
@@ -1245,56 +1447,80 @@
       dealerHand.push(dealCard());
       renderHands();
     }
-    resolveHand();
+    resolveRound();
   }
 
-  function resolveHand() {
+  function settleHand(hand) {
+    const pTotal = handTotal(hand.cards);
+    const dTotal = handTotal(dealerHand);
+    const natural = playerHands.length === 1 && pTotal === 21 && hand.cards.length === 2;
+
+    if (hand.surrendered) {
+      return { payout: 0, text: `Surrender −$${Math.ceil(hand.bet / 2)}`, type: 'push' };
+    }
+    if (hand.busted || pTotal > 21) {
+      return { payout: 0, text: `Lose $${hand.bet}`, type: 'lose' };
+    }
+    if (dTotal > 21) {
+      return { payout: hand.bet * 2, text: `Win $${hand.bet}`, type: 'win' };
+    }
+    if (natural && !(dTotal === 21 && dealerHand.length === 2)) {
+      return { payout: hand.bet + Math.floor(hand.bet * 1.5), text: `Blackjack +$${Math.floor(hand.bet * 1.5)}`, type: 'win' };
+    }
+    if (natural && dTotal === 21 && dealerHand.length === 2) {
+      return { payout: hand.bet, text: 'Push', type: 'push' };
+    }
+    if (pTotal > dTotal) {
+      return { payout: hand.bet * 2, text: `Win $${hand.bet}`, type: 'win' };
+    }
+    if (pTotal < dTotal) {
+      return { payout: 0, text: `Lose $${hand.bet}`, type: 'lose' };
+    }
+    return { payout: hand.bet, text: 'Push', type: 'push' };
+  }
+
+  function resolveRound() {
     gamePhase = 'result';
     dealerHoleHidden = false;
     renderHands();
 
-    if (surrendered) {
-      finishHand();
-      return;
+    const results = playerHands.map(settleHand);
+    results.forEach(result => { bankroll += result.payout; });
+    refreshBankroll();
+
+    if (!playerHands.every(hand => hand.surrendered)) {
+      let msg;
+      let type = results[0] ? results[0].type : '';
+      if (playerHands.length > 1) {
+        msg = results.map((result, i) => `H${i + 1} ${result.text}`).join(' · ');
+        const wins = results.filter(result => result.type === 'win').length;
+        const losses = results.filter(result => result.type === 'lose').length;
+        type = wins && !losses ? 'win' : losses && !wins ? 'lose' : 'push';
+      } else if (results[0]) {
+        const result = results[0];
+        if (result.type === 'win' && result.text.startsWith('Blackjack')) {
+          msg = `Blackjack — you win $${Math.floor(playerHands[0].bet * 1.5)}!`;
+        } else if (result.type === 'win') {
+          msg = dealerHand.length && handTotal(dealerHand) > 21
+            ? `Dealer busts — you win $${playerHands[0].bet}!`
+            : result.text.replace('Win', 'You win') + '!';
+        } else if (result.type === 'lose' && (playerHands[0].busted || handTotal(playerHands[0].cards) > 21)) {
+          msg = `Bust — you lose $${playerHands[0].bet}`;
+        } else if (result.type === 'lose') {
+          msg = `Dealer wins — you lose $${playerHands[0].bet}`;
+        } else if (result.text === 'Push') {
+          msg = playerHands[0].cards.length === 2 && handTotal(playerHands[0].cards) === 21
+            ? 'Push — both have blackjack'
+            : 'Push — bet returned';
+        } else {
+          msg = result.text;
+        }
+        type = result.type;
+      } else {
+        msg = 'Place your bet and deal';
+      }
+      setMessage(msg, type);
     }
-
-    const pTotal = handTotal(playerHand);
-    const dTotal = handTotal(dealerHand);
-    let payout = 0;
-    let msg = '';
-    let type = '';
-
-    if (pTotal > 21) {
-      msg = `Bust — you lose $${bet}`;
-      type = 'lose';
-    } else if (dTotal > 21) {
-      payout = bet * 2;
-      msg = `Dealer busts — you win $${bet}!`;
-      type = 'win';
-    } else if (pTotal === 21 && playerHand.length === 2 && dTotal !== 21) {
-      payout = bet + Math.floor(bet * 1.5);
-      msg = `Blackjack — you win $${Math.floor(bet * 1.5)}!`;
-      type = 'win';
-    } else if (pTotal === 21 && playerHand.length === 2 && dTotal === 21) {
-      payout = bet;
-      msg = 'Push — both have blackjack';
-      type = 'push';
-    } else if (pTotal > dTotal) {
-      payout = bet * 2;
-      msg = `You win $${bet}!`;
-      type = 'win';
-    } else if (pTotal < dTotal) {
-      msg = `Dealer wins — you lose $${bet}`;
-      type = 'lose';
-    } else {
-      payout = bet;
-      msg = 'Push — bet returned';
-      type = 'push';
-    }
-
-    bankroll += payout;
-    $('bankroll').textContent = `$${bankroll}`;
-    setMessage(msg, type);
 
     if (!learnMode) {
       $('quizPrompt').style.display = 'block';
@@ -1309,7 +1535,7 @@
 
   function finishHand() {
     bet = Math.min(bet, bankroll) || 5;
-    $('betDisplay').textContent = `Bet: $${bet}`;
+    refreshBetDisplay();
 
     if (dealtCount >= SHOE_SIZE * PENETRATION) {
       setTimeout(() => {
@@ -1372,6 +1598,7 @@
   $('hitBtn').addEventListener('click', hit);
   $('standBtn').addEventListener('click', stand);
   $('doubleBtn').addEventListener('click', doubleDown);
+  $('splitBtn').addEventListener('click', splitHand);
   $('surrenderBtn').addEventListener('click', surrender);
 
   $('betUp').addEventListener('click', () => {

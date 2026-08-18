@@ -6,7 +6,7 @@ Lite (Learn mode) is free. Practice mode is a **3-day trial**, then $0.99 from [
 
 ## Features
 
-- Full blackjack: Hit, Stand, Double, Surrender
+- Full blackjack: Hit, Stand, Double, Split, Surrender
 - 6-deck shoe with automatic shuffle at ~75% penetration
 - **Learn mode** — see +1 / 0 / −1 badges on every card
 - **Practice mode** — hide counts and quiz yourself after each hand
